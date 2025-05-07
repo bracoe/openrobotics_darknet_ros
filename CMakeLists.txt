@@ -19,6 +19,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
+find_package(image_transport REQUIRED)
 
 add_library(openrobotics_darknet_ros SHARED
   src/detector_network.cpp
@@ -28,7 +29,10 @@ target_compile_definitions(openrobotics_darknet_ros PRIVATE "DARKNET_ROS_BUILDIN
 ament_target_dependencies(openrobotics_darknet_ros
   cv_bridge
   sensor_msgs
-  vision_msgs)
+  vision_msgs
+  image_transport
+  )
+  
 target_link_libraries(openrobotics_darknet_ros "${Darknet}")
 # Necessary as Darknet currently does not install to ./install/darknet/libdarknet.so
 set_target_properties(openrobotics_darknet_ros PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
