@@ -12,147 +12,145 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <darknet.h>
-
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-
 #include "openrobotics_darknet_ros/detector_node.hpp"
-#include "openrobotics_darknet_ros/detector_network.hpp"
-#include "openrobotics_darknet_ros/parse.hpp"
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
 #include "rclcpp/parameter_value.hpp"
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace openrobotics
 {
 namespace darknet_ros
 {
-class DetectorNodePrivate
-{
-public:
-  void on_image_rx(const sensor_msgs::msg::Image::ConstSharedPtr image_msg)
-  {
-    vision_msgs::msg::Detection2DArray::UniquePtr detections(
-      new vision_msgs::msg::Detection2DArray);
-    // std::cerr << "using threshold " << threshold_ << " nms " << nms_threshold_ << "\n";
-    if (network_->detect(*image_msg, threshold_, nms_threshold_, &*detections)) {
-      detections_pub_->publish(std::move(detections));
-    }
-  }
-
-  rcl_interfaces::msg::SetParametersResult
-  on_parameters_change(const std::vector<rclcpp::Parameter> & new_values)
-  {
-    rcl_interfaces::msg::SetParametersResult result;
-    result.successful = true;
-    double new_threshold = threshold_;
-    double new_nms_threshold = nms_threshold_;
-
-    for (const auto & parameter : new_values) {
-      if (threshold_desc_.name == parameter.get_name()) {
-        new_threshold = parameter.as_double();
-        // TODO(sloretz) range constraints in parameter description
-        if (new_threshold < 0.0 || new_threshold > 1.0) {
-          result.successful = false;
-          result.reason = "threshold out of range [0.0, 1.0]";
-        }
-      } else if (nms_threshold_desc_.name == parameter.get_name()) {
-        new_nms_threshold = parameter.as_double();
-        if (new_nms_threshold < 0.0 || new_nms_threshold > 1.0) {
-          result.successful = false;
-          result.reason = "nms_threshold out of range [0.0, 1.0]";
-        }
-      }
-    }
-    if (result.successful) {
-      threshold_ = new_threshold;
-      nms_threshold_ = new_nms_threshold;
-      // std::cerr << "New threshold " << threshold_ << " nms " << nms_threshold_ << "\n";
-    }
-    return result;
-  }
-
-  std::unique_ptr<DetectorNetwork> network_;
-  rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr detections_pub_;
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-
-  double threshold_ = 0.25;
-  double nms_threshold_ = 0.45;
-
-  rcl_interfaces::msg::ParameterDescriptor threshold_desc_;
-  rcl_interfaces::msg::ParameterDescriptor nms_threshold_desc_;
-};
 
 DetectorNode::DetectorNode(rclcpp::NodeOptions options)
-: rclcpp::Node("detector_node", options), impl_(new DetectorNodePrivate)
+: rclcpp::Node("detector_node", options)
 {
   // Read-only input parameters: cfg, weights, classes
   rcl_interfaces::msg::ParameterDescriptor network_cfg_desc;
   network_cfg_desc.description = "Path to config file describing network";
-  network_cfg_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
   network_cfg_desc.read_only = true;
-  network_cfg_desc.name = "network.config";
-  network_cfg_desc.dynamic_typing = true;
   const std::string network_config_path = declare_parameter<std::string>(
-    network_cfg_desc.name);
+    "network.config", "", network_cfg_desc);
+  RCLCPP_INFO(this->get_logger(), "Network config path: %s", network_config_path.c_str());
 
   rcl_interfaces::msg::ParameterDescriptor network_weights_desc;
   network_weights_desc.description = "Path to file describing network weights";
-  network_weights_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
   network_weights_desc.read_only = true;
-  network_weights_desc.name = "network.weights";
   const std::string network_weights_path = declare_parameter<std::string>(
-    network_weights_desc.name);
+    "network.weights", "", network_weights_desc);
+  RCLCPP_INFO(this->get_logger(), "Network weights path: %s", network_weights_path.c_str());
 
   rcl_interfaces::msg::ParameterDescriptor network_class_names_desc;
   network_class_names_desc.description = "Path to file with class names (one per line)";
-  network_class_names_desc.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
   network_class_names_desc.read_only = true;
-  network_class_names_desc.name = "network.class_names";
-  network_class_names_desc.dynamic_typing = true;
   const std::string network_class_names_path = declare_parameter<std::string>(
-    network_class_names_desc.name);
+    "network.class_names", "", network_class_names_desc);
+  RCLCPP_INFO(this->get_logger(), "Network class names path: %s", network_class_names_path.c_str());
 
-  impl_->threshold_desc_.description = "Minimum detection confidence [0.0, 1.0]";
-  impl_->threshold_desc_.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-  impl_->threshold_desc_.name = "detection.threshold";
-  impl_->threshold_ = declare_parameter(
-    impl_->threshold_desc_.name,
-    rclcpp::ParameterValue(impl_->threshold_),
-    impl_->threshold_desc_).get<double>();
+  // Log configuration parameters
+  network_ = std::make_unique<DarkHelp::NN>(
+    network_config_path,
+    network_weights_path,
+    network_class_names_path);
+  RCLCPP_INFO(this->get_logger(), "DarkHelp network initialized successfully");
 
-  impl_->nms_threshold_desc_.description =
+  threshold_desc_.description = "Minimum detection confidence [0.0, 1.0]";
+  RCLCPP_INFO(this->get_logger(), "Initializing DarkHelp neural network...");
+  network_ = std::make_unique<DarkHelp::NN>(
+    network_config_path,
+    network_weights_path,
+    network_class_names_path);
+
+  threshold_desc_.description = "Minimum detection confidence [0.0, 1.0]";
+  threshold_desc_.name = "detection.threshold";
+  threshold_ = declare_parameter(
+    threshold_desc_.name,
+    threshold_,
+    threshold_desc_);
+
+  nms_threshold_desc_.description =
     "Non Maximal Suppression threshold for filtering overlapping boxes [0.0, 1.0]";
-  impl_->nms_threshold_desc_.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-  impl_->nms_threshold_desc_.name = "detection.nms_threshold";
-  impl_->nms_threshold_ = declare_parameter(
-    impl_->nms_threshold_desc_.name,
-    rclcpp::ParameterValue(impl_->nms_threshold_),
-    impl_->nms_threshold_desc_).get<double>();
+  nms_threshold_desc_.name = "detection.nms_threshold";
+  nms_threshold_ = declare_parameter(
+    nms_threshold_desc_.name,
+    nms_threshold_,
+    nms_threshold_desc_);
+  // Set DarkHelp thresholds
+  network_->config.threshold = threshold_;
+  network_->config.non_maximal_suppression_threshold = nms_threshold_;
 
-  param_callback_handle_ = add_on_set_parameters_callback(
-    std::bind(&DetectorNodePrivate::on_parameters_change, &*impl_, std::placeholders::_1));
+  RCLCPP_INFO(this->get_logger(), "Detection thresholds:");
+  RCLCPP_INFO(this->get_logger(), "  Confidence threshold: %.2f", threshold_);
+  RCLCPP_INFO(this->get_logger(), "  NMS threshold: %.2f", nms_threshold_);
 
-  // TODO(sloretz) raise if user tried to initialize node with undeclared parameters
-
-  std::vector<std::string> class_names = parse_class_names(network_class_names_path);
-  impl_->network_.reset(
-    new DetectorNetwork(network_config_path, network_weights_path, class_names));
 
   // Ouput topic ~/detections [vision_msgs/msg/Detection2DArray]
-  impl_->detections_pub_ = this->create_publisher<vision_msgs::msg::Detection2DArray>(
+  detections_pub_ = this->create_publisher<vision_msgs::msg::Detection2DArray>(
     "~/detections", 1);
 
-  // Input topic ~/images [sensor_msgs/msg/Image]
-  impl_->image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-    "~/images", 12, std::bind(&DetectorNodePrivate::on_image_rx, &*impl_, std::placeholders::_1));
+  // TransportHints does not actually declare the parameter
+  this->declare_parameter<std::string>("image_transport", "raw");
+
+  // For compressed topics to remap appropriately, we need to pass a
+  // fully expanded and remapped topic name to image_transport
+  auto node_base = this->get_node_base_interface();
+  sub_topic_ = node_base->resolve_topic_or_service_name("~/images", false);
+
+  rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
+  image_transport::TransportHints hints(this);
+  image_sub_ = image_transport::create_subscription(
+      this, sub_topic_,
+      std::bind(&DetectorNode::on_image_callback, this, std::placeholders::_1),
+      hints.getTransport(), qos_profile);
+  
+  RCLCPP_INFO(this->get_logger(), "Detector node ready");
 }
 
 DetectorNode::~DetectorNode()
 {
 }
+
+void DetectorNode::on_image_callback(
+  const sensor_msgs::msg::Image::ConstSharedPtr msg)
+{
+  try {
+    // Convert and predict
+    cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
+    const auto & results = network_->predict(cv_ptr->image);
+    
+    // Convert detections to ROS message
+    vision_msgs::msg::Detection2DArray detection_msg;
+    detection_msg.header = msg->header;
+    detection_msg.detections.reserve(results.size());
+    
+    for (const auto & prediction : results) {
+      vision_msgs::msg::Detection2D detection;
+      
+      // bounding box
+      const float center_x = prediction.rect.x + prediction.rect.width * 0.5f;
+      const float center_y = prediction.rect.y + prediction.rect.height * 0.5f;
+      detection.bbox.center.position.x = center_x;
+      detection.bbox.center.position.y = center_y;
+      detection.bbox.size_x = prediction.rect.width;
+      detection.bbox.size_y = prediction.rect.height;
+      
+      // result
+      vision_msgs::msg::ObjectHypothesisWithPose hyp;
+      hyp.hypothesis.class_id = std::to_string(prediction.best_class);
+      hyp.hypothesis.score = prediction.best_probability;
+      detection.results.emplace_back(std::move(hyp));
+      
+      detection_msg.detections.emplace_back(std::move(detection));
+    }
+    
+    detections_pub_->publish(std::move(detection_msg));
+  } catch (const cv_bridge::Exception & e) {
+    RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+  }
+}
+
 }  // namespace darknet_ros
 }  // namespace openrobotics
 

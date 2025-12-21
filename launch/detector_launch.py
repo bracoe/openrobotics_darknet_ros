@@ -4,7 +4,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from launch_ros.parameter_descriptions import ParameterFile
 
 
@@ -33,20 +34,29 @@ def generate_launch_description():
         description='Detections containing the bounding boxes of objects to be considered'
     )
 
-    yolo_detector_node = Node(
-        package='openrobotics_darknet_ros',
-        executable='detector_node',
-        name='detector_node',
-        remappings=[
-            ('~/images', rgb_image_topic),
-            ('~/detections', detections_topic)
+    container = ComposableNodeContainer(
+        name='detector_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='openrobotics_darknet_ros',
+                plugin='openrobotics::darknet_ros::DetectorNode',
+                name='detector_node',
+                remappings=[
+                    ('~/images', rgb_image_topic),
+                    ('~/detections', detections_topic)
+                ],
+                parameters=[ParameterFile(detector_parameters_file, allow_substs=True)]
+            )
         ],
-        parameters = [ParameterFile(detector_parameters_file, allow_substs=True)]
+        output='screen'
     )
 
     ld = LaunchDescription()
     ld.add_action(detector_parameters_cmd)
     ld.add_action(rgb_image_cmd)
     ld.add_action(detections_topic_cmd)
-    ld.add_action(yolo_detector_node)
+    ld.add_action(container)
     return ld

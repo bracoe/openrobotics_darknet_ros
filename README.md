@@ -10,7 +10,7 @@ This node can run **object detectors** like [YOLO v3](https://pjreddie.com/darkn
 
 ### Subscribers
 
-* `~/images` (type `sensor_msgs/msg/Image`) - Input mages to feed to the detector
+* `~/images` (type `sensor_msgs/msg/Image`) - Input images to feed to the detector
 
 ### Publishers
 
@@ -26,19 +26,20 @@ This node can run **object detectors** like [YOLO v3](https://pjreddie.com/darkn
 
 ## Dependencies
 
-This package depends on [darknet](https://github.com/AlexeyAB/darknet). If you can't use CUDA but want to use your CPU instead make sure to build it with the flag `-DENABLE_CUDA=OFF` and potentially also disabling multi-threading with `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=TRUE`.
+This package depends on [Hank.ai Darknet](https://github.com/hank-ai/darknet) and [DarkHelp](https://github.com/stephanecharette/DarkHelp), which must be installed on your system before building this package.
+
+
+### Building
+
+Compile this package with:
+
+```bash
+colcon build --packages-select openrobotics_darknet_ros
+```
 
 ### Launching
 
-Compiling this package with
-
-```bash
-$ colcon build --cmake-args -DDOWNLOAD_YOLO_CONFIG=ON
-```
-
-will automatically download the pretrained YOLO v3, v4 and v7 configuration files.
-
-You can then launch the detector node with
+You can launch the detector node with:
 
 ```bash
 $ ros2 launch openrobotics_darknet_ros detector_launch.py rgb_image:=/topic

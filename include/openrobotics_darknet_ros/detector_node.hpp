@@ -15,34 +15,39 @@
 #ifndef OPENROBOTICS_DARKNET_ROS__DETECTOR_NODE_HPP_
 #define OPENROBOTICS_DARKNET_ROS__DETECTOR_NODE_HPP_
 
-#include <memory>
-#include <string>
-
-#include "rclcpp/node.hpp"
-#include "rclcpp/node_interfaces/node_parameters_interface.hpp"
-#include "openrobotics_darknet_ros/visibility_node.hpp"
-
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/image_encodings.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.hpp>
+#include <DarkHelp.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
 
 namespace openrobotics
 {
 namespace darknet_ros
 {
-// Forward declaration
-class DetectorNodePrivate;
 
 class DetectorNode : public rclcpp::Node
 {
 public:
   /// \brief Create a node that uses ROS parameters to get the network
-  DARKNET_ROS_NODE_PUBLIC
   explicit DetectorNode(rclcpp::NodeOptions options);
 
-  DARKNET_ROS_NODE_PUBLIC
   virtual ~DetectorNode();
 
 private:
-  std::unique_ptr<DetectorNodePrivate> impl_;
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+  void on_image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
+  
+  std::unique_ptr<DarkHelp::NN> network_;
+  image_transport::Subscriber image_sub_;
+  rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr detections_pub_;
+  std::string sub_topic_;
+  
+  float threshold_{0.5f};
+  float nms_threshold_{0.45f};
+  rcl_interfaces::msg::ParameterDescriptor threshold_desc_;
+  rcl_interfaces::msg::ParameterDescriptor nms_threshold_desc_;
 };
 }  // namespace darknet_ros
 }  // namespace openrobotics
