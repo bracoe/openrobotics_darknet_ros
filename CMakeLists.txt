@@ -45,11 +45,6 @@ install(TARGETS detector_node
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
-install(TARGETS detector_node
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin)
-
 install(TARGETS detector_node_main
   DESTINATION lib/${PROJECT_NAME})
 
