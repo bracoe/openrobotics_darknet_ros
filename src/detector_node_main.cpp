@@ -22,10 +22,14 @@ int main(int argc, char ** argv)
   rclcpp::init(argc, argv);
 
   rclcpp::NodeOptions options;
+  options.use_intra_process_comms(true);
   auto detector_node = std::make_shared<openrobotics::darknet_ros::DetectorNode>(options);
 
-  rclcpp::spin(detector_node);
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(detector_node);
+  executor.spin();
 
   rclcpp::shutdown();
   return 0;
 }
+

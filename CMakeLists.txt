@@ -18,7 +18,6 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
-find_package(image_transport REQUIRED)
 
 add_library(detector_node SHARED
   src/detector_node.cpp)
@@ -29,8 +28,8 @@ ament_target_dependencies(detector_node PUBLIC
   "rclcpp_components"
   cv_bridge
   sensor_msgs
-  vision_msgs
-  image_transport)
+  vision_msgs)
+  
 target_link_libraries(detector_node PUBLIC "${Darknet}" "${Darkhelp}")
 rclcpp_components_register_nodes(detector_node "openrobotics::darknet_ros::DetectorNode")
 
