@@ -17,9 +17,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <sensor_msgs/image_encodings.hpp>
 #include <cv_bridge/cv_bridge.h>
-#include <image_transport/image_transport.hpp>
 #include <DarkHelp.hpp>
 #include <vision_msgs/msg/detection2_d_array.hpp>
 
@@ -40,7 +38,7 @@ private:
   void on_image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
   
   std::unique_ptr<DarkHelp::NN> network_;
-  image_transport::Subscriber image_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
   rclcpp::Publisher<vision_msgs::msg::Detection2DArray>::SharedPtr detections_pub_;
   std::string sub_topic_;
   
