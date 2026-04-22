@@ -12,11 +12,11 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>cv_bridge</depend>
-  <depend>darknet</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>sensor_msgs</depend>
   <depend>vision_msgs</depend>
+  <depend>image_transport</depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
