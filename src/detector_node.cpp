@@ -49,19 +49,12 @@ DetectorNode::DetectorNode(rclcpp::NodeOptions options)
     "network.class_names", "", network_class_names_desc);
   RCLCPP_INFO(this->get_logger(), "Network class names path: %s", network_class_names_path.c_str());
 
-  // Log configuration parameters
-  network_ = std::make_unique<DarkHelp::NN>(
-    network_config_path,
-    network_weights_path,
-    network_class_names_path);
-  RCLCPP_INFO(this->get_logger(), "DarkHelp network initialized successfully");
-
-  threshold_desc_.description = "Minimum detection confidence [0.0, 1.0]";
   RCLCPP_INFO(this->get_logger(), "Initializing DarkHelp neural network...");
   network_ = std::make_unique<DarkHelp::NN>(
     network_config_path,
     network_weights_path,
     network_class_names_path);
+  RCLCPP_INFO(this->get_logger(), "DarkHelp network initialized successfully");
 
   threshold_desc_.description = "Minimum detection confidence [0.0, 1.0]";
   threshold_desc_.name = "detection.threshold";
