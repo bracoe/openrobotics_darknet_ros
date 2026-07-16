@@ -131,7 +131,7 @@ void DetectorNode::on_image_callback(
       
       // result
       vision_msgs::msg::ObjectHypothesisWithPose hyp;
-      hyp.hypothesis.class_id = std::to_string(prediction.best_class);
+      hyp.hypothesis.class_id = network_->names[prediction.best_class];
       hyp.hypothesis.score = prediction.best_probability;
       detection.results.emplace_back(std::move(hyp));
       
