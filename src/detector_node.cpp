@@ -83,22 +83,10 @@ DetectorNode::DetectorNode(rclcpp::NodeOptions options)
   detections_pub_ = this->create_publisher<vision_msgs::msg::Detection2DArray>(
     "~/detections", 1);
 
-  // TransportHints does not actually declare the parameter
-  this->declare_parameter<std::string>("image_transport", "raw");
-
-  // For compressed topics to remap appropriately, we need to pass a
-  // fully expanded and remapped topic name to image_transport
-  auto node_base = this->get_node_base_interface();
-  sub_topic_ = node_base->resolve_topic_or_service_name("~/images", false);
-
-  rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
-  image_transport::TransportHints hints(this);
-  image_sub_ = image_transport::create_subscription(
-      this, sub_topic_,
-      std::bind(&DetectorNode::on_image_callback, this, std::placeholders::_1),
-      hints.getTransport(), qos_profile);
-  
-  RCLCPP_INFO(this->get_logger(), "Detector node ready");
+  impl_->image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+    "~/images",
+    rclcpp::SensorDataQoS(),
+    std::bind(&DetectorNodePrivate::on_image_rx, impl_.get(), std::placeholders::_1));
 }
 
 DetectorNode::~DetectorNode()
